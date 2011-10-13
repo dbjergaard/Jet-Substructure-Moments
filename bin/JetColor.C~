@@ -1,0 +1,146 @@
+// System includes
+#include <iostream>
+#include <cstdio>
+#include <string>
+#include <vector>
+
+// ROOT includes
+#include "TROOT.h"
+#include "TColor.h"
+#include "TStyle.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TCanvas.h"
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TMath.h"
+
+// User Includes
+
+using std::cout;
+using std::endl;
+using std::vector;
+using std::string;
+void usage(const char*)
+{
+  printf("Usage: JetColor [args] [filename]\n");
+}
+double deltaR(double eta,double phi){ return TMath::Sqrt(eta*eta + phi*phi);}
+double deltaR(double eta1, double phi1, double eta2, double phi2) 
+{ 
+  return deltaR(eta1-eta2,phi1-phi2);
+}
+static void print_2d_histo(TH2* plot, string outname)
+{
+  TCanvas canvas("canvas",plot->GetTitle(),600,400);
+  gStyle->SetPalette(1);
+  //create color gradient
+  UInt_t Number = 4;
+  Double_t Red[4]    = { 0.00, 0.00, 1.00, 1.00};
+  Double_t Green[4]  = { 0.00, 1.00, 1.00, 0.00};
+  Double_t Blue[4]   = { 1.00, 1.00, 0.00, 0.00};
+  Double_t Length[4] = { 0.00, 0.25, 0.75, 1.00};
+  Int_t nb=50;
+  TColor::CreateGradientColorTable(Number,Length,Red,Green,Blue,nb);
+  plot->SetContour(nb);
+  plot->Draw("COLZ");
+  outname = outname + ".eps";
+  canvas.SaveAs(outname.c_str());
+  outname.replace(outname.size()-3,3,"gif");
+  canvas.SaveAs(outname.c_str());
+}
+
+static void print_histo(TH1* plot, string outname)
+{
+  TCanvas genericCanvas;
+  //plot->Sumw2();
+  plot->Draw("E1P0");
+  outname = outname + ".eps";
+  genericCanvas.SaveAs(outname.c_str());
+  outname.replace(outname.size()-3,3,"gif");
+  genericCanvas.SaveAs(outname.c_str());
+}
+
+int main(int argc,const char* argv[])
+{
+  const double delR_cut = 0.4;
+  const double jetEta_cut = 2.5;
+  if(argc < 2)
+    {
+      usage(argv[0]);
+      return -1;
+    }
+  printf("Making Jet Color structure pulls, using %s as input...\n", argv[argc-1]);
+  TFile file(argv[argc-1],"READ");
+  TTree* physics=NULL; 
+  file.GetObject("physics",physics);
+  if(physics == NULL)
+    {
+      printf("Failed to get tree: \"physics\", Aborting.\n");
+      return -1;
+    }
+
+  Int_t nEvents = physics->GetEntries();
+  printf("Found %d events... Looping\n",nEvents);
+  Int_t jet_n = 0, cl_n = 0;
+  vector<float>* jet_E=NULL; vector<float>* jet_pt=NULL; vector<float>* jet_eta=NULL; vector<float>*  jet_phi=NULL;
+  vector<float>* cl_pt=NULL; vector<float>* cl_eta=NULL; vector<float>* cl_phi=NULL;
+
+  physics->SetBranchAddress("jet_n", &jet_n);
+  physics->SetBranchAddress("jet_E", &jet_E);
+
+  physics->SetBranchAddress("jet_pt", &jet_pt);
+  physics->SetBranchAddress("jet_eta", &jet_eta);
+  physics->SetBranchAddress("jet_phi", &jet_phi);
+
+  physics->SetBranchAddress("cl_n", &cl_n);
+  physics->SetBranchAddress("cl_pt", &cl_pt);
+  physics->SetBranchAddress("cl_eta", &cl_eta);
+  physics->SetBranchAddress("cl_phi", &cl_phi);
+
+  //Book Histograms
+  TH1F* h_clu = new TH1F("h_clu", "Number of clusters in a jet", 10, -0.5, 9.5);
+  TH2F* h_eta_phi = new TH2F("h_eta_phi", "Cluster Density in #eta-#phi", 10, -3.5, 3.5, 10, -2*TMath::Pi(), 2*TMath::Pi());
+
+  for(int i=0; i < nEvents; i++)
+    {
+      physics->GetEntry(i);
+      //printf("Read Values from entry %d:\n", i);
+      //printf("Jet N: %d, Jet E size: %d\n", jet_n, jet_E->size());
+      if(jet_E->size() != jet_n || jet_pt->size() != jet_n || jet_eta->size() != jet_n || jet_phi->size() != jet_n)
+	{
+	  printf("Jet size mismatch, skipping event %d\n", i);
+	  continue;
+	}
+      for(int j=0; j < jet_n; j++)
+	{
+	  int n=0;
+	  if(fabs(jet_eta->at(j)) > jetEta_cut)
+	    continue;
+	  for(int k=0; k < cl_n; k++)
+	    {
+	      if(cl_pt->size() != cl_n || cl_eta->size() != cl_n || cl_phi->size() != cl_n)
+		{
+		  printf("Cluster size mismatch, skipping cluster number %d\n", k);
+		  continue;
+		}
+
+	      if( deltaR(cl_eta->at(k), cl_phi->at(k), jet_eta->at(j), jet_phi->at(j)) < delR_cut )
+		{
+		  n++;
+		  //printf("Found a cluster within Delta R: %'.2f, cluster count: %d, jet #%d\n",delR,n,j);
+		}
+	    }
+	  h_clu->Fill(n);
+	  h_eta_phi->Fill(jet_eta->at(j), jet_phi->at(j), n);
+	  //printf("Found %d clusters within delR: %'.2f of jet #%d\n",n,delR_cut,j);
+	  n=0;
+	}
+    }
+  // Print results
+  print_histo(h_clu, "cluster_frequency_plot");  
+  print_2d_histo(h_eta_phi, "cluster_density_plot");
+
+
+  return 0;
+}
