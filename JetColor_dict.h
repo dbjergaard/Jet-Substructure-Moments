@@ -16,6 +16,7 @@
 #define G__DICTIONARY
 #define G__PRIVATE_GVALUE
 #include "G__ci.h"
+#include "FastAllocString.h"
 extern "C" {
 extern void G__cpp_setup_tagtableJetColor_dict();
 extern void G__cpp_setup_inheritanceJetColor_dict();
@@ -43,6 +44,8 @@ extern G__linked_taginfo G__JetColor_dictLN_reverse_iteratorlEvectorlEfloatcOall
 extern G__linked_taginfo G__JetColor_dictLN_string;
 extern G__linked_taginfo G__JetColor_dictLN_vectorlEROOTcLcLTSchemaHelpercOallocatorlEROOTcLcLTSchemaHelpergRsPgR;
 extern G__linked_taginfo G__JetColor_dictLN_reverse_iteratorlEvectorlEROOTcLcLTSchemaHelpercOallocatorlEROOTcLcLTSchemaHelpergRsPgRcLcLiteratorgR;
+extern G__linked_taginfo G__JetColor_dictLN_vectorlETVirtualArraymUcOallocatorlETVirtualArraymUgRsPgR;
+extern G__linked_taginfo G__JetColor_dictLN_reverse_iteratorlEvectorlETVirtualArraymUcOallocatorlETVirtualArraymUgRsPgRcLcLiteratorgR;
 extern G__linked_taginfo G__JetColor_dictLN_pairlEstringcOstringgR;
 
 /* STUB derived class for protected member access */
