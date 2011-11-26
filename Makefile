@@ -14,12 +14,14 @@ ROOFITLDFLAGS=-lRooFit -lRooFitCore -lMinuit -lRooStats -lMathMore
 
 all: JetColor
 
-JetColor: JetColor.o JetColor_dict.o
-	$(CC) JetColor.o JetColor_dict.o -o JetColor $(LDFLAGS) 
-JetColor.o: ./bin/JetColor.C ./JetColor_LinkDef.h
-	$(CC) $(CFLAGS) -c ./bin/JetColor.C
-	rootcint -v4 -f JetColor_dict.cxx -c -p JetColor_LinkDef.h
-JetColor_dict.o: ./JetColor_dict.cxx
-	$(CC) $(CFLAGS) -fPIC -c ./JetColor_dict.cxx
+JetColor: ./obj/JetColor.o ./obj/JetColor_dict.o ./obj/JetMomentCalculator.o
+	$(CC) -o JetColor ./obj/JetColor.o ./obj/JetMomentCalculator.o ./obj/JetColor_dict.o $(LDFLAGS) 
+obj/JetColor.o: ./bin/JetColor.C ./include/JetColor_LinkDef.h #./obj/JetMomentCalculator.o
+	$(CC) $(CFLAGS) -c ./bin/JetColor.C  -o ./obj/JetColor.o #./obj/JetMomentCalculator.o
+	rootcint -v4 -f ./src/JetColor_dict.cxx -c -p ./include/JetColor_LinkDef.h
+obj/JetColor_dict.o: ./src/JetColor_dict.cxx
+	$(CC) $(CFLAGS) -fPIC -c ./src/JetColor_dict.cxx -o ./obj/JetColor_dict.o
+obj/JetMomentCalculator.o: ./src/JetMomentCalculator.C ./include/JetMomentCalculator.h
+	$(CC) $(CFLAGS) -c ./src/JetMomentCalculator.C -o ./obj/JetMomentCalculator.o
 clean:
-	rm -rf *o  JetColor
+	rm -f ./obj/*.o  gmon.out JetColor
