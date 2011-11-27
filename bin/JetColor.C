@@ -67,14 +67,6 @@ int main(int argc,const char* argv[])
 	  physics->Add(argv[i]);
 	}
     }
-  //TTree* physics= data.GetTree();
-  /*
-  if(physics == NULL)
-    {
-      printf("Failed to get tree: \"physics\", Aborting.\n");
-      return -1;
-    }
-  */
   Int_t nEvents = physics->GetEntries();
   printf("Found %d events... Looping\n",nEvents);
   unsigned int jet_n = 0, cl_n = 0;
@@ -161,80 +153,6 @@ int main(int argc,const char* argv[])
 	  Histos2D["h_pull_eta_phi"]->Fill(jetCalc.getEtaComponent(),jetCalc.getPhiComponent());
 	}
     }
-  // iterate over all histos and write to file
-  /*
-  map::const_iterator end = Histos1D.end();
-  for(map::const_iterator histo = Histos1D.begin(); it != end; ++histo)
-    {
-      printf("Writing %s to outfile", histo->first.c_str());
-      
-    }
-  end = Histos2D.end();
-  for(map::const_iterator histo = Histos2D.begin(); it != end; ++histo)
-    {
-
-    }
-  */
   outFile->Write();
   return 0;
 }
-// Depreciated code, I can't get myself to delete
-/* //not needed since calcTheta automatically normalizes the vector components to [0,1]
-pair<double,double> calcNormedR(double x,double y )
-{
-  pair<double,double> vector;
-  double mag = rMag(x, y);
-  vector.first  = x/mag;
-  vector.second = y/mag;
-  return vector;
-}
-*/
- /* No need to reinvent the wheel, use ROOT built-ins instead
-double calcTheta(pair<double,double> vec1, pair<double,double> vec2)
-{
-  double mag1 = rMag(vec1.first, vec1.second);
-  double mag2 = rMag(vec2.first, vec2.second);
-  return TMath::ACos((vec1.first*vec2.first + vec1.second*vec2.second)/(mag1*mag2));
-}
-
-static void print_2d_histo(TH2* plot, string outname)
-{
-  TCanvas canvas("canvas",plot->GetTitle(),600,400);
-  gStyle->SetPalette(1);
-  //create color gradient
-  UInt_t Number = 4;
-  Double_t Red[4]    = { 0.00, 0.00, 1.00, 1.00};
-  Double_t Green[4]  = { 0.00, 1.00, 1.00, 0.00};
-  Double_t Blue[4]   = { 1.00, 1.00, 0.00, 0.00};
-  Double_t Length[4] = { 0.00, 0.25, 0.75, 1.00};
-  Int_t nb=50;
-  TColor::CreateGradientColorTable(Number,Length,Red,Green,Blue,nb);
-  plot->SetContour(nb);
-  plot->Draw("COLZ");
-  outname = outname + ".eps";
-  canvas.SaveAs(outname.c_str());
-  outname.replace(outname.size()-3,3,"gif");
-  canvas.SaveAs(outname.c_str());
-}
-
-static void print_histo(TH1* plot, string outname)
-{
-  TCanvas genericCanvas;
-  //plot->Sumw2();
-  plot->Draw("E1P0");
-  outname = outname + ".eps";
-  genericCanvas.SaveAs(outname.c_str());
-  outname.replace(outname.size()-3,3,"gif");
-  genericCanvas.SaveAs(outname.c_str());
-}
-
-*/
-  // Print results
-  /*
-  print_histo(h_clu, "cluster_frequency_plot");  
-  print_histo(h_pull_mag, "pull_magnitude_plot");
-  print_histo(h_theta, "theta_frequency_plot");
-  print_2d_histo(h_eta_phi, "cluster_density_plot");
-  print_2d_histo(h_pull_eta_phi, "pull_density_plot");
-  */
-
