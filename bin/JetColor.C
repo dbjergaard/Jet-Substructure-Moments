@@ -10,6 +10,7 @@
 #include "TStyle.h"
 #include "TFile.h"
 #include "TTree.h"
+#include "TChain.h"
 #include "TCanvas.h"
 #include "TH1F.h"
 #include "TH2F.h"
@@ -24,10 +25,14 @@ using std::endl;
 using std::vector;
 using std::string;
 using std::pair;
+using std::map;
 
 void usage(const char* name)
 {
-  printf("Usage: %s [args] [filename]\n", name);
+  printf("Usage: %s [args] [[file:] data1.root ... dataN.root]\n", name);
+  printf("\t [args] can be one of the following:\n");
+  printf("\t -o outName :  Output file name \n");
+  printf("\t -h : Display this help message \n");
 }
 
 int main(int argc,const char* argv[])
@@ -35,28 +40,46 @@ int main(int argc,const char* argv[])
   const double delR_cut = 0.4;
   const double jetEta_cut = 2.5;
 
-  
   if(argc < 2)
     {
       usage(argv[0]);
       return -1;
     }
-  //printf("Making Jet Color structure pulls, using %s as input...\n", argv[argc-1]);
-  TFile file(argv[argc-1],"READ");
-  TTree* physics=NULL; 
-  file.GetObject("physics",physics);
+  TFile* outFile=NULL;
+  TChain* physics = new TChain("physics");
+  //parse command line args 
+  for(int i=0; i < argc; i++)
+    {
+      string arg(argv[i]);
+      if(arg == "-h" || arg == "--help")
+	{
+	  usage(argv[0]);
+	  return -1;
+	}
+      else if(arg == "-o") //output file name
+	{
+	  printf("Writing output products to: %s \n", argv[i+1]);
+	  outFile = new TFile(argv[i+1],"RECREATE");
+	}
+      else if( i > 1 && string(argv[i-1]) != "-o" && arg.compare(arg.size()-5,5,".root")==0)
+	{
+	  printf("Adding %s to data chain\n", argv[i]);
+	  physics->Add(argv[i]);
+	}
+    }
+  //TTree* physics= data.GetTree();
+  /*
   if(physics == NULL)
     {
       printf("Failed to get tree: \"physics\", Aborting.\n");
       return -1;
     }
-
+  */
   Int_t nEvents = physics->GetEntries();
   printf("Found %d events... Looping\n",nEvents);
   unsigned int jet_n = 0, cl_n = 0;
   vector<float>* jet_E=NULL; vector<float>* jet_pt=NULL; vector<float>* jet_eta=NULL; vector<float>*  jet_phi=NULL;
   vector<float>* cl_pt=NULL; vector<float>* cl_eta=NULL; vector<float>* cl_phi=NULL;
-
 
   physics->SetBranchAddress("jet_n", &jet_n);
   physics->SetBranchAddress("jet_E", &jet_E);
@@ -72,13 +95,15 @@ int main(int argc,const char* argv[])
 
   //Book Histograms
   // 1D
-  TH1F* h_clu = new TH1F("h_clu", "Number of clusters in a jet", 15, -0.5, 15.5);
-  TH1F* h_pull_mag = new TH1F("h_pull_mag", "Pull Magnitude", 20, 0,.4);
-  TH1F* h_theta = new TH1F("h_pull", "Pull Angle (#Theta_r)", 20, -TMath::Pi(), TMath::Pi());
+  map<string,TH1F*> Histos1D;
+  Histos1D["h_clu"]       = new TH1F("h_clu", "Number of clusters in a jet", 15, -0.5, 15.5);
+  Histos1D["h_pull_mag"]	= new TH1F("h_pull_mag", "Pull Magnitude", 20, 0,.4);
+  Histos1D["h_theta"]	= new TH1F("h_pull", "Pull Angle (#Theta_r)", 20, -TMath::Pi(), TMath::Pi());
 
   // 2D 
-  TH2F* h_eta_phi = new TH2F("h_eta_phi", "Cluster Density in #eta-#phi", 50, -2.5, 2.5, 50, -4, 4);
-  TH2F* h_pull_eta_phi = new TH2F("h_pull_eta_phi", "Pull Density in #eta-#phi", 40, -.25, .25, 40, -.25, .25);
+  map<string,TH2F*> Histos2D;
+  Histos2D["h_eta_phi"] = new TH2F("h_eta_phi", "Cluster Density in #eta-#phi", 50, -2.5, 2.5, 50, -4, 4);
+  Histos2D["h_pull_eta_phi"] = new TH2F("h_pull_eta_phi", "Pull Density in #eta-#phi", 40, -.25, .25, 40, -.25, .25);
   
 
   for(int i=0; i < nEvents; i++)
@@ -116,10 +141,6 @@ int main(int argc,const char* argv[])
 	      if( jetCalc.deltaR(cl_eta->at(k), cl_phi->at(k), jet_eta->at(j), jet_phi->at(j)) < delR_cut )
 		{
 		  n++;
-		  /*
-		  calcJetPull(cl_pt->at(k),jet_pt->at(j),cl_eta->at(k)-jet_eta->at(j),
-			      cl_phi->at(k) - jet_phi->at(j), &pull_vector.first, &pull_vector.second);
-		  */
 		  jetCalc.calcJetPull(cl_pt->at(k),jet_pt->at(j),cl_eta->at(k)-jet_eta->at(j),
 				      cl_phi->at(k) - jet_phi->at(j));
 
@@ -127,32 +148,34 @@ int main(int argc,const char* argv[])
 		    {
 		      TVector2 delta_jet(jet_eta->at(j)-jet_eta->at(l),
 					 jet_phi->at(j)-jet_phi->at(l));
-		      //calcTheta(delta_jet, pull_vector);
-		      
+
 		      theta=delta_jet.DeltaPhi(TVector2(jetCalc.getEtaComponent(),
 						    jetCalc.getPhiComponent()));
 		    }
 		}
 	    }
-	  
-	  h_clu->Fill(n);	
-	  h_theta->Fill(theta);
-	  h_pull_mag->Fill(jetCalc.rMag(jetCalc.getEtaComponent(),jetCalc.getPhiComponent()));
-	  h_eta_phi->Fill(jet_eta->at(j), jet_phi->at(j), (n+0.0)/(jet_n+0.0));//normalize to the jet number
-	  h_pull_eta_phi->Fill(jetCalc.getEtaComponent(),jetCalc.getPhiComponent());
+	  Histos1D["h_clu"]->Fill(n);	
+	  Histos1D["h_theta"]->Fill(theta);
+	  Histos1D["h_pull_mag"]->Fill(jetCalc.rMag(jetCalc.getEtaComponent(),jetCalc.getPhiComponent()));
+	  Histos2D["h_eta_phi"]->Fill(jet_eta->at(j), jet_phi->at(j), (n+0.0)/(jet_n+0.0));//normalize to the jet number
+	  Histos2D["h_pull_eta_phi"]->Fill(jetCalc.getEtaComponent(),jetCalc.getPhiComponent());
 	}
     }
-
-
-  // Print results
+  // iterate over all histos and write to file
   /*
-  print_histo(h_clu, "cluster_frequency_plot");  
-  print_histo(h_pull_mag, "pull_magnitude_plot");
-  print_histo(h_theta, "theta_frequency_plot");
-  print_2d_histo(h_eta_phi, "cluster_density_plot");
-  print_2d_histo(h_pull_eta_phi, "pull_density_plot");
-  */
+  map::const_iterator end = Histos1D.end();
+  for(map::const_iterator histo = Histos1D.begin(); it != end; ++histo)
+    {
+      printf("Writing %s to outfile", histo->first.c_str());
+      
+    }
+  end = Histos2D.end();
+  for(map::const_iterator histo = Histos2D.begin(); it != end; ++histo)
+    {
 
+    }
+  */
+  outFile->Write();
   return 0;
 }
 // Depreciated code, I can't get myself to delete
@@ -206,3 +229,12 @@ static void print_histo(TH1* plot, string outname)
 }
 
 */
+  // Print results
+  /*
+  print_histo(h_clu, "cluster_frequency_plot");  
+  print_histo(h_pull_mag, "pull_magnitude_plot");
+  print_histo(h_theta, "theta_frequency_plot");
+  print_2d_histo(h_eta_phi, "cluster_density_plot");
+  print_2d_histo(h_pull_eta_phi, "pull_density_plot");
+  */
+

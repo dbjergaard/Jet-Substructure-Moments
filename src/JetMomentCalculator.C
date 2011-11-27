@@ -10,7 +10,7 @@ JetMomentCalculator::JetMomentCalculator()
   :teta(0.0),tphi(0.0)
 { /*do nothing yet*/ }
 JetMomentCalculator::~JetMomentCalculator()
-{/* Blow up and die here */}
+{/*Die gracefully */}
 void JetMomentCalculator::calcJetPull(double cl_pt, double jet_pt, 
 		 double reta, double rphi)
 {
